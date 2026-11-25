@@ -12,7 +12,7 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -20,6 +20,14 @@ import { buildDossier } from './vendor/makefun-game.ts';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
+// Hand-in guard: refuse to submit a build whose screenshots are missing or oversized,
+// so a broken render never reaches the grader as an entry.
+const shots = existsSync(join(here, 'screenshots')) ? readdirSync(join(here, 'screenshots')).filter((f) => /\.(png|jpe?g)$/i.test(f)) : [];
+if (shots.length < 3 || shots.length > 4) throw new Error(`screenshots/ holds ${shots.length} images; the gate takes 3 or 4`);
+for (const shot of shots) {
+  const bytes = statSync(join(here, 'screenshots', shot)).size;
+  if (bytes > 262144) throw new Error(`${shot} is ${bytes} bytes; the gate takes at most 262144`);
+}
 mkdirSync(out, { recursive: true });
 cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
 mkdirSync(join(out, 'screenshots'), { recursive: true });
